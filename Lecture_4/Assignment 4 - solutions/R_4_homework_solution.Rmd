@@ -1,0 +1,275 @@
+---
+title: "Homework 4 - Solutions (Tutorial)"
+author: "Thomas Gaertner"
+date: "November 15, 2022"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+Download this R Markdown file, save it on your computer, and perform all the below tasks by inserting your answer in text or by inserting R chunks below. After you are done, upload this file with your solutions on Moodle.
+
+# Exercise 1: Descriptive statistics - example 1
+
+## Task
+Create a summary table with descriptive statistics of the esoph dataframe in the datasets package. For example by using the summary_table function in the qwraps2 package. Alternatively, only compute the descriptive statistics of interest.
+
+## Solution
+
+### Data Check
+```{r}
+library(datasets)
+?esoph
+str(esoph)
+head(esoph)
+```
+
+> The data frame has for each agegroup, alcohol group and tob group the number of cases and number of control patients. So it is already kind of summarized!
+
+### Create Table 1
+
+If we are generating a table 1 with the `qwraps2` package, we will not see the relevant information! (But for passing the assignment, it was enough).
+
+```{r}
+# install.packages("qwraps2")
+library(qwraps2)
+options(qwraps2_markup = "markdown") # -> this needs to be executed once in the entire Rmd file (not in every chunk) in order to show the output here
+```
+
+```{r, results = "asis"}
+summary_table(esoph)
+
+library(dplyr)
+
+esoph %>%
+  dplyr::select(tobgp, agegp, alcgp, ncontrols, ncases) %>%
+  dplyr::group_by(tobgp) %>%
+  summary_table() %>%
+  print(rtitle = "Summary Statistics",
+        cnames = c("Tobacco group 1 (0-9g/day) \\ (N = 24)", "Tobacco group 2 (10-19g/day) \\ (N = 24)", 
+                   "Tobacco group 3 (20-29g/day) \\ (N = 20)", "Tobacco group 4 (30+g/day) \\ (N = 20)"))
+# create quick table of the variables stratified by tobacco use (could use some polishing of rows, eg we might want to trim the shown statistics for ncases and ncontrols, and and exclude the tobaccogroup from the rows):
+```
+
+###  Solution with data preprocessing
+
+In this solution, we create a new data frame by repeating the groups by the number of cases and the number of individuals. For that, we using a for loop, which iterates over all rows in the data frame.
+
+```{r}
+preprocessed_data <- data.frame()
+
+for (i in 1:nrow(esoph)){
+  # Add Cases
+  patients_cases <- data.frame(
+    "agegp" = rep(esoph$agegp[i], esoph$ncases[i]),
+    "alcgp" = rep(esoph$alcgp[i], esoph$ncases[i]),
+    "tobgp" = rep(esoph$tobgp[i], esoph$ncases[i]),
+    "group" = rep("Case", esoph$ncases[i])
+  )
+
+  # Add Controls  
+  patients_control <- data.frame(
+    "agegp" = rep(esoph$agegp[i], esoph$ncontrols[i]),
+    "alcgp" = rep(esoph$alcgp[i], esoph$ncontrols[i]),
+    "tobgp" = rep(esoph$tobgp[i], esoph$ncontrols[i]),
+    "group" = rep("Control", esoph$ncontrols[i])
+  )
+  
+  # Combine number of control and cases and combine it with all previous iterations
+  preprocessed_data <- rbind(preprocessed_data, patients_control, patients_cases)
+}
+
+preprocessed_data
+```
+
+
+(Advanced) Alternatively a `foreach` loop could be used.This could be done in parallel (`%dopar%`), which increases the speed, but kernels need to be registered first for that.
+```{r}
+#install.packages("foreach")
+library(foreach)
+
+preprocessed_data <- foreach(i=1:nrow(esoph), .combine=rbind) %do% {
+  # Add Cases
+  patients_cases <- data.frame(
+    "agegp" = rep(esoph$agegp[i], esoph$ncases[i]),
+    "alcgp" = rep(esoph$alcgp[i], esoph$ncases[i]),
+    "tobgp" = rep(esoph$tobgp[i], esoph$ncases[i]),
+    "group" = rep("Case", esoph$ncases[i])
+  )
+
+  # Add Controls  
+  patients_control <- data.frame(
+    "agegp" = rep(esoph$agegp[i], esoph$ncontrols[i]),
+    "alcgp" = rep(esoph$alcgp[i], esoph$ncontrols[i]),
+    "tobgp" = rep(esoph$tobgp[i], esoph$ncontrols[i]),
+    "group" = rep("Control", esoph$ncontrols[i])
+  )
+  
+  # Combine number of control and cases
+  # By returning it, we can combine the output of each iteration by using .combine=rbind
+  rbind(patients_control, patients_cases)
+}
+```
+
+After we have pre processed the data, we can directly use the `summary functions` as described in the lecture. 
+
+```{r, results = "asis"}
+preprocessed_data %>%
+  dplyr::select(tobgp, agegp, alcgp, group) %>%
+  dplyr::group_by(group) %>%
+  summary_table() %>%
+  print(rtitle = "Summary Statistics")
+```
+
+### Short alternative solution
+In the next chunk, we can see a quick solution with the qwraps2 package. Here, we do not have to preprocess the data and can directly create the summary.
+```{r}
+n_cases_summary <-
+  list("Age Group" =
+       list("25-34" = ~ sum(ncases[agegp == "25-34"]),
+            "35-44" = ~ sum(ncases[agegp == "35-44"]),
+            "45-54" = ~ sum(ncases[agegp == "45-54"]),
+            "55-64" = ~ sum(ncases[agegp == "55-64"]),
+            "65-74" = ~ sum(ncases[agegp == "65-74"]),
+            "75+" = ~ sum(ncases[agegp == "75+"])
+       ),
+       "Alcohol Group" =
+         list("0-39" = ~ sum(ncases[alcgp == "0-39g/day"]),
+            "40-79" = ~ sum(ncases[alcgp == "40-79"]),
+            "80-119" = ~ sum(ncases[alcgp == "80-119"]),
+            "120+" = ~ sum(ncases[alcgp == "120+"])
+       ),
+       "Tobacco Group" =
+         list("0-9" = ~ sum(ncases[tobgp == "0-9g/day"]),
+            "10-19" = ~ sum(ncases[tobgp == "10-19"]),
+            "20-29" = ~ sum(ncases[tobgp == "20-29"]),
+            "30+" = ~ sum(ncases[tobgp == "30+"])
+       )
+)
+
+n_control_summary <-
+  list("Age Group" =
+       list("25-34" = ~ sum(ncontrols[agegp == "25-34"]),
+            "35-44" = ~ sum(ncontrols[agegp == "35-44"]),
+            "45-54" = ~ sum(ncontrols[agegp == "45-54"]),
+            "55-64" = ~ sum(ncontrols[agegp == "55-64"]),
+            "65-74" = ~ sum(ncontrols[agegp == "65-74"]),
+            "75+" = ~ sum(ncontrols[agegp == "75+"])
+       ),
+       "Alcohol Group" =
+         list("0-39" = ~ sum(ncontrols[alcgp == "0-39g/day"]),
+            "40-79" = ~ sum(ncontrols[alcgp == "40-79"]),
+            "80-119" = ~ sum(ncontrols[alcgp == "80-119"]),
+            "120+" = ~ sum(ncontrols[alcgp == "120+"])
+       ),
+       "Tobacco Group" =
+         list("0-9" = ~ sum(ncontrols[tobgp == "0-9g/day"]),
+            "10-19" = ~ sum(ncontrols[tobgp == "10-19"]),
+            "20-29" = ~ sum(ncontrols[tobgp == "20-29"]),
+            "30+" = ~ sum(ncontrols[tobgp == "30+"])
+       )
+)
+
+nCases <- summary_table(esoph, n_cases_summary)
+nControl <- summary_table(esoph, n_control_summary)
+completeTable <- cbind(nCases,nControl)
+
+print(completeTable, cname = c("Cases", "Control"))
+```
+
+## Exercise 2: Descriptive statistics - example 2 (optional, more advanced)
+
+**Task:** Create a summary table with descriptive statistics of the UKLungDeaths data in the datasets package. For example by using the summary_table function in the qwraps2 package. Alternatively, only compute the descriptive statistics of interest.
+
+Hint: the data consists of three datasets.
+
+**Tutorials on Time Series Data in R**
+
+* [Tutorials Point](https://www.tutorialspoint.com/r/r_time_series_analysis.htm)
+* [R Statistics Tutorial](http://r-statistics.co/Time-Series-Analysis-With-R.html)
+* [YouTube Tutorial](https://www.youtube.com/watch?v=uW3PQmzvUcw)
+
+**Solution:** 
+
+```{r}
+# install.packages("qwraps2")
+library(qwraps2)
+options(qwraps2_markup = "markdown")
+```
+
+
+```{r}
+library(datasets)
+?UKLungDeaths 
+# -> these are three datasets, each including a time series with monthly deaths from bronchitis, emphysema and asthma, from January 1974 to December 1979, for both sexes together (ldeaths), and stratified by sex into mdeaths (for males) and fdeaths (for females)
+```
+
+
+```{r}
+# Look at the data first:
+# their structure is a time series, which is a special vector format:
+str(ldeaths)
+str(mdeaths)
+str(fdeaths)
+```
+
+```{r, results = "asis"}
+# My choice: Create a table of the average number of deaths, for the variables year and month, stratified by gender.
+
+# For this, create a dataframe first:
+dat <- data.frame(deaths = c(mdeaths, fdeaths), 
+                  gender = factor(c(rep("male", length(mdeaths)), rep("female", length(fdeaths)))), 
+                  year = factor(rep(c(rep("1974", 12), rep("1975", 12), rep("1976", 12), rep("1977", 12), rep("1978", 12), rep("1979", 12)), 2)), 
+                  month = factor(rep(c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"), 12)),
+                  month_num = as.numeric(rep(1:12, 12)))
+```
+
+
+```{r, results = "asis"}
+# Create tables using tapply:
+tapply(dat$deaths, list(dat$year, dat$gender), mean, na.rm = TRUE)
+tapply(dat$deaths, list(dat$month, dat$gender), mean, na.rm = TRUE)
+```
+
+
+```{r, results = "asis"}
+# using summary_table function:
+our_summary2 <-
+  list("Year" =
+       list("1974" = ~ qwraps2::mean_sd(deaths[year == "1974"], denote_sd = "paren", na_rm = TRUE, show_n = "never"),
+            "1975" = ~ qwraps2::mean_sd(deaths[year == "1975"], denote_sd = "paren", na_rm = TRUE, show_n = "never"),
+            "1976" = ~ qwraps2::mean_sd(deaths[year == "1976"], denote_sd = "paren", na_rm = TRUE, show_n = "never"),
+            "1977" = ~ qwraps2::mean_sd(deaths[year == "1977"], denote_sd = "paren", na_rm = TRUE, show_n = "never"),
+            "1978" = ~ qwraps2::mean_sd(deaths[year == "1978"], denote_sd = "paren", na_rm = TRUE, show_n = "never"),
+            "1979" = ~ qwraps2::mean_sd(deaths[year == "1979"], denote_sd = "paren", na_rm = TRUE, show_n = "never")),
+       "Month" =
+       list("Jan" = ~ qwraps2::mean_sd(deaths[month == "Jan"], denote_sd = "paren", na_rm = TRUE, show_n = "never"),
+            "Feb" = ~ qwraps2::mean_sd(deaths[month == "Feb"], denote_sd = "paren", na_rm = TRUE, show_n = "never"),
+            "Mar" = ~ qwraps2::mean_sd(deaths[month == "Mar"], denote_sd = "paren", na_rm = TRUE, show_n = "never"),
+            "Apr" = ~ qwraps2::mean_sd(deaths[month == "Apr"], denote_sd = "paren", na_rm = TRUE, show_n = "never"),
+            "May" = ~ qwraps2::mean_sd(deaths[month == "May"], denote_sd = "paren", na_rm = TRUE, show_n = "never"),
+            "Jun" = ~ qwraps2::mean_sd(deaths[month == "Jun"], denote_sd = "paren", na_rm = TRUE, show_n = "never"),
+            "Jul" = ~ qwraps2::mean_sd(deaths[month == "Jul"], denote_sd = "paren", na_rm = TRUE, show_n = "never"),
+            "Aug" = ~ qwraps2::mean_sd(deaths[month == "Aug"], denote_sd = "paren", na_rm = TRUE, show_n = "never"),
+            "Sep" = ~ qwraps2::mean_sd(deaths[month == "Sep"], denote_sd = "paren", na_rm = TRUE, show_n = "never"),
+            "Oct" = ~ qwraps2::mean_sd(deaths[month == "Oct"], denote_sd = "paren", na_rm = TRUE, show_n = "never"),
+            "Nov" = ~ qwraps2::mean_sd(deaths[month == "Nov"], denote_sd = "paren", na_rm = TRUE, show_n = "never"),
+            "Dec" = ~ qwraps2::mean_sd(deaths[month == "Dec"], denote_sd = "paren", na_rm = TRUE, show_n = "never"))
+       
+  )
+summary_table(dat, our_summary2)
+
+our_table2 <- summary_table(dplyr::group_by(dat, gender), our_summary2)
+
+print(our_table2,
+      rtitle = "Mean number (SD) of deaths",
+        cnames = c("In women (N = 72)", "In men \\ (N = 72)")
+      )
+```
+
+```{r}
+library(ggplot2)
+ggplot(data.frame(dat), aes(x=month_num, y=deaths, col=year)) + geom_line() + facet_grid(gender~.)
+```
+
+
