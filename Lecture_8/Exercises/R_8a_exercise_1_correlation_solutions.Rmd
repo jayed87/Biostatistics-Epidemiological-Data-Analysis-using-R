@@ -1,0 +1,46 @@
+---
+title: "Solutions to Exercise 1: Correlation"
+author: "Stefan Konigorski"
+date: "December 7, 2022"
+output:
+  html_document: default
+---
+
+## Load KiGGS data
+
+```{r}
+dat_link <- url("https://www.dropbox.com/s/pd0z829pv2otzqt/KiGGS03_06.RData?dl=1")
+load(dat_link)
+dat <- KiGGS03_06
+```
+
+## Correlation
+
+Choose 3 different variables and compute pairwise different correlation coefficients. Also look at scatterplots of the variables.
+
+Also try to use the cor and plot for all 3 variables at once.
+
+```{r}
+# Here for 3 metric variables:
+sbp1 <- as.numeric(as.character(dat$sys1))
+sbp2 <- as.numeric(as.character(dat$sys2))
+sbp12 <- as.numeric(as.character(dat$sys12))
+
+# compute correlations
+cor(data.frame(sbp1, sbp2, sbp12), use = "complete.obs")
+cor(data.frame(sbp1, sbp2, sbp12), use = "complete.obs", method = "pearson")
+cor(data.frame(sbp1, sbp2, sbp12), use = "complete.obs", method = "spearman")
+# calculate confidence intervals and perform hypothesis test:
+cor.test(sbp1, sbp2, use = "complete.obs")
+
+# scatterplots
+plot(data.frame(sbp1, sbp2, sbp12))
+
+# scatterplot and correlation for ordinal (age2) and metric variable (sbp1)
+plot(as.numeric(dat$age2),sbp1)
+cor(as.numeric(dat$age2), sbp1, use = "complete.obs", method = "spearman")
+
+```
+
+Look at the results (correlation coefficients, confidence intervals, hypothesis tests), compare and interpret them. 
+-> see R_8_more_exercises_solutions.Rmd

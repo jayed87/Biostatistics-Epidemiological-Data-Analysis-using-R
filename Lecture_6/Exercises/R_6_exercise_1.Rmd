@@ -1,0 +1,28 @@
+---
+title: "Exercise 1"
+author: "Stefan Konigorski"
+date: "November 23, 2022"
+output:
+  html_document: default
+---
+
+## Load KiGGS data
+
+```{r}
+dat_link <- url("https://www.dropbox.com/s/pd0z829pv2otzqt/KiGGS03_06.RData?dl=1")
+load(dat_link)
+dat <- KiGGS03_06
+```
+
+## Get subset of KiGGS data
+
+Assume that the 17640 children in the KiGGS are our population. 
+
+Let's mimick a study, draw a random sample of 100 children from this dataset, and compute the mean BMI of boys and girls in this sample.
+
+```{r}
+...
+
+```
+
+Are these mean BMI of boys and girls different, can you conclude this for the population?

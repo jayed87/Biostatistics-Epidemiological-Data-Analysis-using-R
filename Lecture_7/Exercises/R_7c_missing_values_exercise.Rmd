@@ -1,0 +1,163 @@
+---
+title: "How to deal with missing values - simulation study"
+author: "Stefan Konigorski"
+date: "November 30, 2022"
+output:
+  html_document: default
+---
+
+## Preparations
+
+Load KiGGS data:
+
+```{r}
+dat_link <- url("https://www.dropbox.com/s/pd0z829pv2otzqt/KiGGS03_06.RData?dl=1")
+load(dat_link)
+kiggs <- KiGGS03_06
+```
+
+Overview of the variables:
+
+```{r}
+# sleep:
+str(kiggs$e065z)
+summary(kiggs$e065z)
+hist(as.numeric(as.character(kiggs$e065z)))
+
+# Psychological wellbeing of the children (external rating by parents)
+str(kiggs$pw100.e)
+summary(kiggs$pw100.e)
+hist(as.numeric(as.character(kiggs$pw100.e)))
+
+# Physical wellbeing of the children (external rating by parents)
+str(kiggs$kw100.e)
+summary(kiggs$kw100.e)
+hist(as.numeric(as.character(kiggs$kw100.e)))
+```
+
+## Create datasets
+
+```{r}
+# Full dataset:
+dat <- data.frame(schlaf = as.numeric(as.character(kiggs$e065z)), 
+                  psy = as.numeric(as.character(kiggs$pw100.e)), 
+                  body = as.numeric(as.character(kiggs$kw100.e)))
+table(!is.na(dat$psy))
+dat
+```
+
+## Complete case analysis
+
+Compute the correlation (=measure of association), 95% confidence interval, and p-value of hypothesis test. The Pearson correlation is a measure of association between two metric variables. Even though you can argue whether here, the Spearman correlation coefficient for ordinal data is more appropriate, we will consider the Pearson correlation in this exercise since it is easier to work with.
+
+```{r}
+# Extract complete cases
+idx <- complete.cases(dat)
+dat_complete <- dat[idx, ]
+
+# Compute the correlation
+res0 <- cor.test(dat_complete$schlaf, dat_complete$psy, method = "pearson")
+res0$estimate
+res0$conf.int
+res0$p.value
+
+# alternative, since R does this by default:
+cor.test(dat$schlaf, dat$psy, method = "pearson", use = "complete.obs")
+# this is actually pairwise deletion, hence the small difference between the results
+```
+
+### Mean imputation
+
+```{r}
+# Imputation
+dat_mean_imputation <- dat
+dat_mean_imputation$psy[is.na(dat_mean_imputation$psy)] <- mean(dat_mean_imputation$psy, na.rm = TRUE)
+dat_mean_imputation$schlaf[is.na(dat_mean_imputation$schlaf)] <- mean(dat_mean_imputation$schlaf, na.rm = TRUE)
+
+# compute the correlation
+cor.test(dat_mean_imputation$schlaf, dat_mean_imputation$psy, method = "pearson")
+```
+
+### Multiple imputation using mice
+
+```{r}
+# install.packages("mice")
+library(mice)
+
+# Pattern of missing values
+md.pattern(dat)
+
+# Nice visualization of missing values in the VIM package, can be useful to identify patterns of missing values
+# install.packages("VIM")
+library(VIM)
+aggr(dat, col = c('navyblue','red'), numbers = TRUE, sortVars = TRUE, labels = names(dat), cex.axis = 0.7, gap = 3, ylab = c("Histogram of missing data", "Pattern"))
+
+# Other example how to apply the function
+aggr(kiggs[, 100:110])
+```
+
+```{r, include = FALSE}
+# Step 1: Do imputation of missing values, generate 5 imputed datasets
+tempData <- mice(dat, m = 5, maxit = 5, meth = 'pmm', seed = 500)
+?mice
+```
+
+```{r}
+# Summary of the imputation
+summary(tempData)
+
+# The 5 imputed datasets can be extracted as follows:
+completedData1 <- complete(tempData,1)
+completedData2 <- complete(tempData,2)
+completedData3 <- complete(tempData,3)
+completedData4 <- complete(tempData,4)
+completedData5 <- complete(tempData,5)
+```
+
+```{r}
+# Visualization of the distribution of the imputed variable psy
+mice::densityplot(tempData)
+```
+
+```{r}
+# Step 2: Do the statistical analysis using the "with" function
+modelFit1 <- with(tempData, cor(psy, schlaf, method = "pearson"))
+
+# The estimate of the correlation can also be calculated by hand:
+mean(unlist(modelFit1$analyses))
+
+# Alternatively, you can use the cor.test function, which also computes confidence intervals
+with(tempData, cor.test(psy, schlaf, method = "pearson"))
+
+# Step 3: Pool results
+# This can be done using the "pool" function in the mice package, where dfcom are the degrees of freedom of the separate analyses of the imputed datasets, which are also shown in the cor.test output. eg:
+# summary(pool(modelFit1), dfcom = 7557)
+# However, the pooling of the correlations i.e. the extraction of the relevant information is not readily available in the pool function, so that this gives an error here.
+
+# For regression it works, e.g. using:
+modelFit1 <- with(tempData, lm(psy ~ schlaf))
+summary(pool(modelFit1), dfcom = 7557)
+
+# For correlations you can do this by hand, e.g. by extracting the estimators and their standard errors from the results, for the pooling,
+# e.g. do something like modelFit1_for_pool <- list(est = ..., SE = ...)
+```
+
+```{r, include = FALSE}
+# Shorter: use the miceadds package:
+# install.packages("miceadds")
+library(mice)
+library(miceadds)
+tempdata <- mice(dat, m = 5, maxit = 5, meth = 'pmm', seed = 500)
+miceadds::micombine.cor(mi.res = tempdata, variables = c(1,2), conf.level = 0.95, method = "pearson")
+```
+
+```{r, include = FALSE}
+# Using Bayesian linear regression in the imputation:
+tempData_2 <- mice(dat, meth = 'norm', seed = 500)
+miceadds::micombine.cor(mi.res = tempData_2, variables = c(1,2), conf.level = 0.95, method = "pearson")
+```
+
+## Exercise
+
+Now use multiple imputation, possible including more variables in the imputation, in order to estimate and test the correlation between physical wellbeing and sleep.
+

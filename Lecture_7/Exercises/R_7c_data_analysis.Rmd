@@ -1,0 +1,26 @@
+---
+title: "Data analysis"
+author: "Stefan Konigorski"
+date: "November 30, 2022"
+output:
+  html_document: default
+---
+
+## Preparations
+
+Load KiGGS data:
+
+```{r}
+dat_link <- url("https://www.dropbox.com/s/pd0z829pv2otzqt/KiGGS03_06.RData?dl=1")
+load(dat_link)
+kiggs <- KiGGS03_06
+```
+
+## Task
+
+- Get together in groups of 4 people.
+- Choose study question: without looking at the KIGGS dataset, choose 2 health related research questions, that investigate the association between 2 variables.
+- Have a look at the KIGGS data dictionnary to see which variables are available. Choose one of the two research questions, and investigate this in the KIGGS dataset. 
+- You might have to use proxy variables, you will have to check+transform variables ...
+- Look at variables, compute descriptive statistics, maybe plots, estimate+test association + interprete.
+- Every group that is able to answer the research question will get one free pass at homework. :-)

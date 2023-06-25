@@ -1,0 +1,96 @@
+---
+title: "Homework 8"
+author: "Stefan Konigorski"
+date: "December 7, 2022"
+output:
+  html_document: default
+---
+
+Download this R Markdown file, save it on your computer, and perform all the below tasks by inserting your answer in text or by inserting R chunks below. After you are done, upload this file with your solutions on Moodle.
+
+## Exercise 1: Correlation
+
+a) In the KiGGS dataset, compute the Pearson and Spearman correlation coefficient for the two variables 'sys1' and 'sys2' and hypothesis tests whether the two variables are associated or not. Interpret the results, and decide which of the two coefficients you would report in your analysis and why.
+```{r}
+#Loading Dataset
+dat_link <- url("https://www.dropbox.com/s/pd0z829pv2otzqt/KiGGS03_06.RData?dl=1")
+load(dat_link)
+kiggs <- KiGGS03_06
+
+#Variables
+var1 <- as.numeric(as.character(kiggs$sys1))
+var2 <- as.numeric(as.character(kiggs$sys2))
+
+#Computing correlations
+cor(data.frame(var1, var2), use = "complete.obs", method = "pearson")
+cor(data.frame(var1, var2), use = "complete.obs", method = "spearman")
+
+#Hypothesis testing:
+cor.test(var1, var2, use = "complete.obs", method = "pearson")
+cor.test(var1, var2, use = "complete.obs", method = "spearman")
+```
+#Interpretation of Hypothesis testing 
+The p-value of the test is 2.2e-16, which is less than the significance level alpha = 0.05. We can conclude that sys1 and sys2 are significantly correlated with a correlation coefficient of 0.85 and p-value of 2.2e-16.
+
+Since, data are normally distributed and var1 and var2 are metric variable so i would report pearson correlation in my analysis.
+
+
+
+b) Optional: Compute confidence intervals of the correlation coefficient estimates from part a). Note: for confidence intervals of the Spearman coefficient, you need another function.
+```{r}
+```
+
+## Exercise 2: Linear regression
+
+a) Predict sys2 by sys1 using a simple linear regression, and interpret the results.
+```{r}
+# compute linear regression models
+result <- lm(var2 ~ var1)
+
+#Summary of the results
+summary(result)
+
+# Visualize results
+plot(var1, var2)
+abline(a = summary(result)$coefficients[1, 1], b = summary(result)$coefficients[2, 1], col="blue")
+
+#Prediction of sys2
+pred1 <- predict(result)
+head(var2)
+head(pred1)
+```
+#Interpretation of the result1
+
+Here, var2 used as a dependent and on the other hand var1 as an independent (or predictor variable) variable. The minimum residual was -37.677, the median residual was -0.158 and the max residual was 31.458. Looking at the output above, it looks like our distribution is not quite symmetrical and is slightly right-skewed as the median residual is -0,158. This tells us that our model is not predicting as well at the higher ranges as it does for the low ranges. Average estimated coefficients is 16.828706 and for additional one unit of var1 would increased estimated coefficient by 0.826940. From the Standard error we can say statistically, the coefficient will most likely not be zero and the p-value is less than 0.05 which tell us that the coefficient is significant to the model. The Residaul Standard error is 6.305 which is a large value in terms of Max value (31.458). Which indicates that the model isn't fitting the data very well.
+
+
+
+b) Add age2 and sex as predictors to the linear regression model above, and interpret the results.
+```{r}
+#Selecting variable age and sex
+age <- kiggs$age2
+sex <- kiggs$sex
+
+#Factorizing the variable
+age <- factor(kiggs$age2, levels=c("0 - 1 J.", "2 - 3 J.", "4 - 5 J.","6 - 7 J.", "8 - 9 J.", "10 - 11 J.", "12 - 13 J.", "14 - 15 J.", "16 - 17 J."))
+sex <- factor(kiggs$sex, levels=c("Männlich","Weiblich"))
+
+#Linear regression with added variable age and sex
+result2 <- lm(var2 ~ var1 + as.numeric(age)+as.numeric(sex))
+summary(result2)
+
+#prediction
+pred2 <- predict(result2)
+head(var2)
+head(pred2)
+
+```
+#Interpretation of result2
+Here, var2 used as a dependent and on the other hand (var1, age and sex) as an independent (or predictor variables) variable. The minimum residual was -36.253, the median residual was -0.174 and the max residual was 30.640. Looking at the output above, it looks like our distribution is not quite symmetrical and is slightly right-skewed as the median residual is -0.174. This tells us that our model is not predicting as well at the higher salary ranges as it does for the low ranges. Average estimated coefficients is 22.260339 and for additional one unit of var1, age and sex would increase the estimated coefficient by 0.734452, 0.889521, -0.357868 respectively. From the Standard error we can say statistically that the coefficient will most likely not be zero and the p-value is less than 0.05 which tell us that the coefficient is significant to the model. The Residaul Standard error is 6.123 which is a large value in terms of Max value (30.640). Which indicates that the model isn't fitting the data very well.
+
+
+## Exercise 3: Visualization of regression (optional)
+
+Use the functions in ggplot2 to compute a scatter plot and insert the regression line of the analysis in exercise 2a.
+```{r}
+```

@@ -1,0 +1,20 @@
+---
+title: "Exercise 2"
+author: "Stefan Konigorski"
+date: "November 23, 2022"
+output:
+  html_document: default
+---
+
+## Load KiGGS data
+
+```{r}
+dat_link <- url("https://www.dropbox.com/s/pd0z829pv2otzqt/KiGGS03_06.RData?dl=1")
+load(dat_link)
+dat <- KiGGS03_06
+```
+
+## Do hypothesis tests
+
+a) Select one metric and one binary variable (or create one) and perform a 2-sample t-test.
+b) Select two categorical variables (or create them) and perform a $\chi^2$ test.	

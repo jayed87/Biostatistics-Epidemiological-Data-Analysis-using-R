@@ -1,0 +1,91 @@
+---
+title: "Homework 7"
+author: "Stefan Konigorski"
+date: "November 30, 2022"
+output:
+  html_document: default
+---
+
+Download this R Markdown file, save it on your computer, and perform all the below tasks by inserting your answer in text or by inserting R chunks below. After you are done, upload this file with your solutions on Moodle.
+
+## Preparations
+
+Load KiGGS data:
+
+```{r}
+dat_link <- url("https://www.dropbox.com/s/pd0z829pv2otzqt/KiGGS03_06.RData?dl=1")
+load(dat_link)
+kiggs <- KiGGS03_06
+```
+
+## Exercise 1: Multiple imputation
+
+a) In the KiGGS dataset, choose 2 metric variables of your choice.
+```{r}
+w <- kiggs$E014z #Weight gain during pregnancy (kg)
+n <- kiggs$e029z #Nights in the Hospital (EFB)
+
+#Weight gain during pregnancy (kg)
+str(w)
+summary(w)
+hist(as.numeric(as.character(w)))
+
+##Nights in the Hospital (EFB)
+str(n)
+summary(n)
+hist(as.numeric(as.character(n)))
+```
+
+
+
+
+
+b) Compute the correlation between these two variables
+```{r}
+# Preparing dataset:
+data_complete <- data.frame(weight_gain = as.numeric(as.character(w)), 
+                           night_hospital = as.numeric(as.character(n)))
+
+idx_complete <- complete.cases(data_complete)
+data_complete <- data_complete[idx_complete, ]
+
+table(!is.na(data_complete$weight_gain))
+table(!is.na(data_complete$night_hospital))
+
+cor(data_complete$weight_gain, data_complete$night_hospital)
+
+res <- cor.test(data_complete$weight_gain, data_complete$night_hospital, method = "pearson")
+res$estimate
+res$conf.int
+res$p.value
+
+
+# visualization
+library("ggpubr")
+ggscatter(data_complete, x = "weight_gain", y = "night_hospital", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson")
+
+```
+
+
+
+c) Perform a multiple imputation using the mice function with the 'pmm' method and otherwise default settings.
+```{r}
+library(mice)
+
+# Pattern of missing values
+md.pattern(data_complete)
+
+tempData <- mice(data_complete, m = 5, maxit = 5, meth = 'pmm', seed = 500)
+summary(tempData)
+
+```
+
+
+d) Compute the correlation again on the multiple imputed datasets.
+```{r}
+#importing library
+library(miceadds)
+miceadds::micombine.cor(mi.res = tempData, variables = c(1,2), conf.level = 0.95, method = "pearson")
+```
