@@ -1,0 +1,86 @@
+---
+title: "Final exam - data formatting for question 2"
+author: "Stefan Konigorski"
+date: "February 8, 2023"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r, eval = FALSE}
+library(haven)
+path = file.path("D:/Data_Science/Third_Semester/Biostatistica_&_Epidemiological_Data_Analysis_With_R", "Final_exam", "KiGGS03_06.sav")
+
+kiggs = read_sav(path)
+kiggs$E070M    <- factor(kiggs$E070M,    labels = c("yes, daily", "yes, occasionally", "no"))
+kiggs$E070V    <- factor(kiggs$E070V,    labels = c("yes, daily", "yes, occasionally", "no"))
+kiggs$E072     <- factor(kiggs$E072,     labels = c("yes, regularly", "yes, from time to time", "no, never"))
+kiggs$E074     <- factor(kiggs$E074,     labels = c("yes, regularly", "yes, from time to time", "no, never", "has not breastfed"))
+kiggs$sex      <- factor(kiggs$sex,      labels = c("boys", "girls"))
+kiggs$age2     <- factor(kiggs$age2,     labels = c("0-1y", "2-3y", "4-5y", "6-7y", "8-9y", "10-11y", "12-13y", "14-15y", "16-17y"))
+kiggs$schichtz <- factor(kiggs$schichtz, labels = c("low social status", "medium social status", "high social status"))
+
+library(dplyr)
+#Extracting specific variable from the dataset
+kiggs <- kiggs %>%
+  select(E070M, E070V, E072, E074, sex, age2, schichtz)
+save(kiggs, file = "kiggs.RData")
+```
+
+#Question 3 - Data transformations and data checks
+```{r, eval = FALSE}
+#Checking whether the variables are factors or not
+class(kiggs$E070M)
+class(kiggs$E070V)
+class(kiggs$E072)
+class(kiggs$E074)
+kiggs$E070M
+#Converting "has not breastfed" to NA
+table(kiggs$E074=="has not breastfed")
+kiggs$E074[kiggs$E074 == "has not breastfed"] <- NA
+kiggs$E074[1:20]
+#Dropping the empty field
+library(tidyr)
+kiggs %>% drop_na(E074)
+
+#Checking above two steps
+
+
+```
+
+```{r, eval = FALSE}
+df <- structure(list(Q1a = c(1L, 3L, 4L), Q2a = c(2L, 2L, 3L), Q3b = c(4L, 
+1L, 2L), Q4c = c(2L, 2L, 1L), Q5a = c(2L, 2L, 1L), Q6c = c(0L, 
+1L, 1L), Q7b = c(1L, 1L, 1L)), class = "data.frame", row.names = c(NA, 
+-3L))
+```
+
+```{r, eval = FALSE}
+```
+
+```{r, eval = FALSE}
+```
+
+```{r, eval = FALSE}
+```
+
+```{r, eval = FALSE}
+```
+
+```{r, eval = FALSE}
+```
+
+```{r, eval = FALSE}
+```
+
+```{r, eval = FALSE}
+```
+
+```{r, eval = FALSE}
+```
+
+```{r, eval = FALSE}
+```
+
+```{r, eval = FALSE}
+```

@@ -1,0 +1,284 @@
+---
+title: "Final_exam_jayed"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+date: "2023-03-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**Question 1 - R Markdown**
+
+**Create an R Markdown file containing all relevant R code (in R chunks) that was used to calculate the results. Then knit the R Markdown script to a Word/pdf/html document and submit these two files.**
+
+Answer:
+
+Create the "Final_exam_jayed" R Markdown file (html_document) and do all the tasks. Finally kint the R Markdown script to a html document (Final_exam_jayed.html). 
+
+**Question 2 - Import, extract and save data** 
+
+**Question 2(a)**
+
+**Download the SPSS data file KiGGS03_06.sav from moodle and import it into R**
+
+```{r, message=FALSE}
+#Loading required library
+library(haven)
+library(dplyr)
+library(qwraps2)
+library(pwr)
+
+#Reading data
+data <- read_sav("KiGGS03_06.sav")
+```
+
+**Question 2(b)**
+
+**Create a new dataframe in R named kiggs, which contains all variables (and only these) for the analysis (E070M, E070V, E072, E074, arztZ01, sex, age2, schichtz, e065z)**
+
+```{r}
+#Creating new datafram "kiggs"
+kiggs <- data.frame("E070M"=data$E070M, 
+                    "E070V"=data$E070V, 
+                    "E072"=data$E072,
+                    "E074"=data$E074,
+                    "arztZ01"=data$arztZ01,
+                    "sex"=data$sex,
+                    "age2"=data$age2,
+                    "schichtz"=data$schichtz,
+                    "e065z"=data$e065z)
+head(kiggs)
+```
+
+**Question 2(c)**
+
+**Run the formatting steps in the provided Rmd file data_formatting.Rmd. Save this formatted dataframe on your computer, e.g. on your desktop.**
+
+```{r, results='hide', echo=FALSE, message=FALSE}
+rmarkdown::render('data_formatting.Rmd')
+#Rendering the data_formatting file for knitting
+```
+
+**Saving dataframe on local storage**
+
+```{r, }
+save(kiggs, file = "kiggs.RData")
+```
+
+**Question 3 - Data transformations and data checks**
+
+**Question 3(a)**
+
+**Checking the variables whether they are factors or not**
+
+```{r}
+#Checking factor variables
+sapply(kiggs[1:4], class)
+```
+
+**Setting "has not breastfed" to NA of variable E074 for all children**
+
+```{r}
+kiggs$E074[kiggs$E074 == "has not breastfed"] <- NA
+```
+
+**Removing the NA fields**
+
+```{r}
+kiggs <- kiggs[!is.na(kiggs$E074), ]
+```
+
+**Checking above two steps**
+
+```{r}
+table(is.na(kiggs$E074))
+```
+
+**calculating the new variable burdenS as the sum of the ranks of the four variables E070M, E070V, E072, E074 for each person.**
+
+```{r}
+burdenS <- as.numeric(kiggs$E070M) + as.numeric(kiggs$E070V) + as.numeric(kiggs$E072) + as.numeric(kiggs$E074)
+```
+
+**What is the meaning of this new variable, does a high value mean that the children were exposed to high levels of smoking, or that they were exposed to low levels of smoking?**
+
+Answer:
+
+The variable burdenS contain information about the total smoke exposure to which the children were exposed. High value means that the children were exposed to low levels of smoking and low value means they were exposed to high levels of smoking. The highest number 12 means that both father and mother(during pregnancy or breastfeeding) never smoked while lowest number which is 4 means they daily smoked.
+
+**Question 3(b)**
+
+**Adding variabes burdenS to the dataset kiggs**
+
+```{r}
+kiggs$burdenS <- burdenS
+```
+
+**saving it in its updated form as an RData file (overwrite the previous file).**
+
+```{r}
+save(kiggs, file = "kiggs.RData")
+```
+
+**Question 4 - Descriptive statistics**
+
+**Calculating absolute frequency tables for age2, sex, burdenS, and mean + standar deviation for arztZ01.**
+
+```{r, results='asis'}
+
+m <- round(mean(kiggs$arztZ01, na.rm = TRUE), digits = 3)
+sd <- round(sd(kiggs$arztZ01, na.rm = TRUE), digits = 3)
+
+options(qwraps2_markup = "markdown")
+
+tab <-
+  list(
+    "sex" = list(
+      "boys" = ~ qwraps2::n_perc0(sex == "boys", show_symbol = TRUE),
+      "girls" = ~ qwraps2::n_perc0(sex == "girls", show_symbol = TRUE)),
+    "age2" = list(
+      "0-1y" = ~ qwraps2::n_perc0(age2 == "0-1y", show_symbol = TRUE),
+      "2-3y" = ~ qwraps2::n_perc0(age2 == "2-3y", show_symbol = TRUE),
+      "4-5y" = ~ qwraps2::n_perc0(age2 == "4-5y", show_symbol = TRUE),
+      "6-7y" = ~ qwraps2::n_perc0(age2 == "6-7y", show_symbol = TRUE),
+      "8-9y" = ~ qwraps2::n_perc0(age2 == "8-9y", show_symbol = TRUE),
+      "10-11y" = ~ qwraps2::n_perc0(age2 == "10-11y", show_symbol = TRUE),
+      "12-13y" = ~ qwraps2::n_perc0(age2 == "12-13y", show_symbol = TRUE),
+      "14-15y" = ~ qwraps2::n_perc0(age2 == "14-15y", show_symbol = TRUE),
+      "16-17y" = ~ qwraps2::n_perc0(age2 == "16-17y", show_symbol = TRUE)),
+    "burdenS" = list(
+      "4" = ~ qwraps2::n_perc0(burdenS == "4", show_symbol = TRUE, na_rm = TRUE),
+      "5" = ~ qwraps2::n_perc0(burdenS == "5", show_symbol = TRUE, na_rm = TRUE),
+      "6" = ~ qwraps2::n_perc0(burdenS == "6", show_symbol = TRUE, na_rm = TRUE),
+      "7" = ~ qwraps2::n_perc0(burdenS == "7", show_symbol = TRUE, na_rm = TRUE),
+      "8" = ~ qwraps2::n_perc0(burdenS == "8", show_symbol = TRUE, na_rm = TRUE),
+      "9" = ~ qwraps2::n_perc0(burdenS == "9", show_symbol = TRUE, na_rm = TRUE),
+      "10" = ~ qwraps2::n_perc0(burdenS == "10", show_symbol = TRUE, na_rm = TRUE),
+      "11" = ~ qwraps2::n_perc0(burdenS == "11", show_symbol = TRUE, na_rm = TRUE),
+      "12" = ~ qwraps2::n_perc0(burdenS == "12", show_symbol = TRUE, na_rm = TRUE)),
+    "arztZ01" = list(
+      "mean" = ~ m,
+      "sd" = ~ sd))
+qwraps2::summary_table(kiggs, tab)
+```
+
+**Findind missing values in Sex, age2, burdenS, and arztZ01**
+
+```{r}
+# Seperating sex, ag2, burdenS and arztZ01 variable for simple missing value calculation
+ temp <- kiggs %>%
+  select( sex, age2, burdenS, arztZ01)
+
+sapply(temp, function(x) sum(is.na(x)))
+# sex and age2 both have 0 missing values where burdenS has 851 and arztZ01 has 359 missing values
+```
+
+*Total number of observations that have complete data for age2, sex, burdenS and arztZ01**
+
+```{r}
+sum(complete.cases(temp))
+#There are some 12339 complete observations
+```
+
+**Question 5 - Linear Regression**
+
+**Question 5(a)**
+
+**Calculate a linear regression, with arztZ01 as outcome and the predictors burdenS, sex, age2, schichtz and e065z.**
+
+```{r}
+res <- lm(kiggs$arztZ01 ~ kiggs$burdenS + as.numeric(kiggs$sex)+ as.numeric(kiggs$age2)+as.numeric(kiggs$schichtz)+ kiggs$e065z)
+summary(res)
+```
+
+**Check for each predictor how you take it into the regression model (factor, ordinal or metric) and justify for each variable why you did it that way (e.g. because the variable has the measurement level xyz)**
+
+Answer:
+
+Among the five predictors, burdenS and e065z are metric variable so didn't have to transform it into numberic to feed to linear regression model. The sex variable is a factor of two levels and has been kept as it is (nominal). On the other hand, age2 is ordinal variable which has an order from 0-1y to 16y-17y so it has also been transformed it into numeric.
+
+Lastly, the variable schichtz is a factor which have three level and has been converted to numeric. 
+
+
+**Question 5(b)**
+
+**Regression coefficient**
+
+```{r}
+#Regression coefficient of burdenS
+res$coefficients[2]
+```
+
+**Interpretation of regression coefficient**
+
+Answer:
+
+The estimated -0.03135777 regression coefficient indicates that for an increase in the smoking habit of parents (burdenS) by a unit, the number of paediatrician visits (arztZ01) decreases by the value of the regression coefficient, given that the other variables are held constant.
+
+**95% confidence level of burdenS**
+
+```{r}
+# 95% confidence level of burdenS
+confint(res, level = 0.95)[2]
+```
+
+**Reporting p values of the burdenS**
+
+```{r}
+#Reporting p values of the burdenS
+summary(res)$coefficients[,4]
+```
+
+**Interpretation of p-value**
+
+Answer:
+
+Based on the p-value of burdenS (0.1383) it can be stated that-
+* BurdenS is not statistically significant because its p-value (0.1383) is greater than the usual significance level of 0.05. And it indicates there is insufficient evidence in the variable to conclude that a non-zero correlation exists.
+
+**Question 5(c)**
+
+Answer:
+
+Since we are not interested in the effect of the area on the health i think Spurious relationship would be a suitable strategy for accounting for this correlation.
+
+
+**Question 6 – Sample size calculation**
+
+**Question 6(a)**
+
+**Estimating effect size** 
+
+Answers:
+
+According to numerous studies, infants' birth weights decline as their mothers' cigarette smoking rises. Study found that, babies of mothers who smoke 6–10 cigarettes a day lose significantly more weight (320g) and  than babies of mothers who don't smoke. Considering there is a big difference, I would estimate that the effect size will be 0.6. This is because for moderate-to-large difference and it is common to use a value that is greater than or equal to 0.5 for significant difference.
+
+**Question 6(b)**
+
+**Choosing an appropriate statistical model for the sample size calculation**
+
+Answer:
+
+We have two groups of data, one of which does not smoke, and the other of which smokes ten cigarettes daily. Groups are connected to one another and essentially show the outcome before and after smoking 10 cigarettes per day. I would apply a paired statistical model in this situation because both groups are dependent. I am going to use pwr.t.test model to calculate the sample size.
+
+**Question 6(c)**
+
+**Computing the minimum necessary sample size**
+
+```{r}
+n <- pwr.t.test(d = 0.6, sig.level = 0.05, power = 0.8, type = "paired")
+print(n[1])
+# The minimum necessary sample size for a power of 80% and a significance threshold of alpha = 0.05 is around 24. 
+```
+
+**Question 6(d)**
+
+**Do you think this is a good study, or do you see any major weaknesses in the study design?**
+
+Answer:
+
+For this study, we have used only one aspect out of many. I don't think it's a good study. Because there might be other factors responsible for infants' birth weight decrease such genetics, age of the parent, length of pregnancy, diet during pregnancy etcetera. To find the actual reason for birth weight decrease of infants, we have to consider as many factors as possible. 
