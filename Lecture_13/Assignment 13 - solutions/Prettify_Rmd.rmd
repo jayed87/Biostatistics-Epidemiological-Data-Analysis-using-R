@@ -1,0 +1,137 @@
+---
+title: "Prettify RMD"
+author: "Thomas Gaertner"
+date: "February 7, 2023"
+output: 
+  pdf_document:
+    toc: True
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# R Markdown General Introduction
+
+* [R Markdown cheat sheet](https://evoldyn.gitlab.io/evomics-2018/ref-sheets/rmarkdown-cheatsheet-2.0.pdf)
+* [Guide for PDF](https://bookdown.org/yihui/rmarkdown/pdf-document.html)
+* [Guide for HTML](https://bookdown.org/yihui/rmarkdown/html-document.html)
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. 
+
+# Example Analysis
+
+In this example, we investigate a linear regression model to predict the `Sepal.Length` in the `iris` data set. 
+
+## Data preprocessing
+
+First, we have to load the data. Furthermore, we are transforming the variables into our target format.
+
+```{r load data, eval=TRUE, show=TRUE}
+# Loading the data
+data(iris)
+dat <- iris
+```
+
+As the data preprocessing might not be not so important for the interpretation, we can exclude them from the report with `include=FALSE`. 
+
+```{r preprocessing, include=FALSE}
+# doing some preprocessing, which is not important for the outcome
+# converting variables into double
+dat$Sepal.Length <- as.double(dat$Sepal.Length)
+dat$Sepal.Width <- as.double(dat$Sepal.Width)
+dat$Petal.Length <- as.double(dat$Petal.Length)
+dat$Petal.Width <- as.double(dat$Petal.Width)
+# Species into factor
+dat$Species <- as.factor(dat$Species)
+```
+
+
+## Some insights from the data set 
+
+First, we investigate, how many species we have. Below, you can see a table with species and their counts.
+
+```{r overview, echo=FALSE, warning=FALSE, paged.print=TRUE}
+# Creating a table with all species and their counts 
+table(dat$Species)
+```
+
+But of course, we can create a table 1 with e.g. the `qwraps2` package:
+
+```{r table1, echo=FALSE, warning=FALSE, results="asis"}
+library(qwraps2)
+options(qwraps2_markup = "markdown")
+our_summary <-
+  list(      "Sepal Length" =
+    list("Min" = ~min(Sepal.Length),
+         "Mean (SD)" = ~ qwraps2::mean_sd(Sepal.Length),
+         "Max" = ~max(Sepal.Length)),
+          "Sepal Width" =
+    list("Min" = ~min(Sepal.Width),
+         "Mean (SD)" = ~ qwraps2::mean_sd(Sepal.Width),
+         "Max" = ~max(Sepal.Width)))
+
+sum_dat <- dplyr::group_by(dat, Species)
+summary_table(sum_dat, our_summary)
+```
+
+
+If you want to print a data frame, you can use `knitr::kable`, which will reformat the table nicely in the report.
+
+```{r echo=FALSE, results="asis"}
+tab <- data.frame(tapply(dat$Sepal.Length, dat$Species, mean))
+colnames(tab) <- c("Mean (Sepal.Length)")
+knitr::kable(tab, caption = "Table with Mean Sepal Length among species")
+```
+
+Great, it seems that the sample mean is different between the groups. [^1]
+
+[^1]: This is not a formal test. For comparing the mean, a t-test should be applied.
+
+In the next step, we are looking into the density plots. We will create them with `ggplot2`.
+
+```{r dense plot, warning=FALSE, echo=FALSE}
+library(ggplot2)
+ggplot(dat, aes(x=Sepal.Length, fill=Species, color=Species)) + geom_density(alpha = 0.3)
+```
+
+Cool, we have included a nice graph. 
+
+## Linear Model
+
+In the next step, we will fit a linear model, which is estimating the `Sepal.Length`. As variables, we include the `species`, the `petal` values and the `Sepal.Width`. We will also print the summary. We assume for the analysis a  significance level of $\alpha=0.05$ 
+
+```{r linear_model}
+fit <- lm(Sepal.Length ~ Species + Sepal.Width, data = dat)
+summary(fit)
+```
+
+We can also print out a single output from our summary, if we want. We can call for instance in the summary some values. For that, we are using `print` and `paste` (for string concatenation). 
+
+```{r Print Some Values, echo=FALSE, result="asis"}
+sum <- summary(fit)
+
+print(paste("R-Squared: ", round(sum$r.squared, 3)))
+```
+
+And again, we are including a nice table of the coefficients with `knitr::kable`.
+
+```{r echo=FALSE, result="asis"}
+knitr::kable(sum$coefficients, caption = "Coefficients table from `fit`.")
+```
+
+
+> **Findings (some example interpretations)**
+>
+> 1) The model has a p-value of < 2.2e-16, which is less than our significance level of $\alpha=0.05$.
+> 2) The R-squared values is 0.726, so ~73% of the variance of sepal length can be explained by our model.
+> 3) All coefficients has a p-value < $\alpha$ and are significant. 
+> 4) The sepal length of  species "versicolor" are expected to be 1.45 larger than the species setosa.
+> 5) With a sepal width increase of 1, we can expect an increase of 0.8 for the sepal length.
+
+
+
+

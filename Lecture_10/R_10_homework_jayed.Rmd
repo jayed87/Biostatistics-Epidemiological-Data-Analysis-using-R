@@ -1,0 +1,133 @@
+---
+title: "Homework 10"
+author: "Stefan Konigorski"
+date: "January 11, 2023"
+output:
+  html_document: default
+---
+
+Download this R Markdown file, save it on your computer, and perform all the below tasks by inserting your answer in text or by inserting R chunks below. After you are done, upload this file with your solutions on Moodle.
+
+For all exercises, use the KiGGS dataset.
+## dataset importing
+```{r}
+dat_link <- url("https://www.dropbox.com/s/pd0z829pv2otzqt/KiGGS03_06.RData?dl=1")
+load(dat_link)
+dat <- KiGGS03_06
+```
+
+## Exercise 1: Logistic regression
+
+Choose 1 suitable outcome variable of interest and 3 predictors, and compute a logistic regression model. Interpret the results: which predictor is associated with the outcome and what is the strength of association (odds ratio)? Also, is the model a good fit i.e. can the outcome be predicted well (look at the misclassification table for this)?
+```{r}
+## I have taken a asthma(CA03) as an outcome variable and ice cream (fq39), frozen vegetable(fq27), tap water(fq05) as 3 predictors for logistic regression model and check how often these three predictors causes asthma.
+
+#Formatting variables
+
+#Asthma
+dat$CA03 <- factor(dat$CA03, labels = c("yes", "no", "don't know"))
+
+#How often ice cream
+dat$fq39 <- factor(dat$fq39, labels = c("never", "1 time per month", "2/3 times a month", "1/2 times a week", "2/3 times a week", "5/6 times a week","once a day","2/3 times a day","4/5 times a day","more than 5 times a day"))
+
+#How often frozen vegetables
+dat$fq27 <- factor(dat$fq27, labels = c("never", "1 time per month", "2/3 times a month", "1/2 times a week", "2/3 times a week", "5/6 times a week","once a day","2/3 times a day","4/5 times a day","more than 5 times a day"))
+
+#How often tap water
+dat$fq05 <- factor(dat$fq05, labels = c("never", "1 time per month", "2/3 times a month", "1/2 times a week", "2/3 times a week", "5/6 times a week","once a day","2/3 times a day","4/5 times a day","more than 5 times a day"))
+
+# For a better interpretation of the results, transform the outcome variable. Remove the values "don't know" and the factor level to create a binary variable. Then reorder the levels.
+dat$CA03[dat$CA03 == "don't know"] <- NA
+table(dat$CA03)
+dat$CA03 <- droplevels(dat$CA03)
+table(dat$CA03)
+# reorder the levels 
+dat$CA03 <- factor(dat$CA03, levels = c("no", "yes"))
+table(dat$CA03)
+
+model <- glm(CA03 ~ as.numeric(fq39) + as.numeric(fq27) + as.numeric(fq05), family = binomial(link = "logit"), data = dat)
+summary(model)
+```
+
+```{r}
+# Compute the odds ratio:
+exp(coef(model))
+library(jtools)
+jtools::summ(model, exp = T, confint = T, model.fit = F, digits = 3)
+```
+
+```{r}
+#predicted probabilites and classifications/misclassifications.
+pred_p <- predict(model, type = "response")
+
+pred_z <- rep(NA, length(dat$CA03))
+pred_z[as.numeric(names(pred_p))] <- pred_p
+pred_z <- pred_z > mean(pred_z, na.rm = TRUE)
+
+table(pred_z)
+table(dat$CA03)
+table( pred_z, dat$CA03)
+```
+#result interpretation
+The p-values for the three predictors used in this model are 0.569, 0.257, and 0.227, respectively, indicating that they are not significant. The conclusion reached is that the predictors have little to no influence on the result, which is asthma. These three predictors' odds ratios are pretty close to 1. The model has a substantial false positive count, which shows that the model is not a good fit, as can be seen in the misclassification table.
+
+
+
+## Exercise 2: Poisson regression
+
+Predict the amount of measles vaccinations (Maanzahl) by the number of siblings (e006B1), the sex and age of the children (sex, age2), place of residence (STALA, OW) and the monthly household income (e093), using a Poisson regression model. Interpret the results. Which variables are associated with the outcome? Is the model a good fit to the data?
+```{r}
+# Preparation - check variables (eg if they are factor variables, and if yes, how many categories they have), especially important for E085z01
+str(dat$Maanzahl)
+str(dat$e006B1)
+str(dat$sex)
+str(dat$age2)
+str(dat$STALA)
+str(dat$OW)
+str(dat$e093)
+```
+
+```{r}
+# Format variables
+dat$E085z01 <- as.numeric(as.character(dat$E085z01))
+dat$e006B1<- factor(dat$e006B1, labels = c("no sibling", "1 sibling", "2 or more siblings"))
+dat$sex   <- factor(dat$sex, labels = c("boys", "girls"))
+dat$age2  <- factor(dat$age2, labels = c("0-1y", "2-3y", "4-5y", "6-7y", "8-9y", "10-11y", "12-13y", "14-15y", "16-17y"))
+dat$OW    <- factor(dat$OW, labels = c("east", "west"))
+dat$STALA <- factor(dat$STALA, labels = c("rural", "small_city", "medium_city", "urban"))
+```
+
+```{r}
+# look at distribution of outcome
+hist(dat$Maanzahl)
+mean(dat$Maanzahl, na.rm = TRUE)
+var(dat$Maanzahl, na.rm = TRUE)
+
+# means grater than variance i.e. we should rather compute a normal Binomial regression model! Still
+```
+
+```{r}
+# fit model with all variables:
+fit <- glm(dat$Maanzahl ~ e006B1 + sex + age2 + STALA + OW + e093, family = poisson(link = "log"), data = dat)
+
+# results:
+summary(fit)
+exp(coef(fit))
+library(jtools)
+jtools::summ(fit, exp = T, confint = T, model.fit = F, digits = 3)
+```
+
+```{r}
+# Predictions:
+predictions <- data.frame(emp = dat$Maanzahl[1:17640 %in% names(predict(fit, type="response"))], exp = predict(fit, type="response"))
+cor(predictions$emp, predictions$exp)
+plot(predictions$emp, predictions$exp)
+
+```
+#Interpretation of the results
+Among the all variables age, number of the children and their residence of place has significant p-value. So they are more associate than other variables. From the plot we see that the model not a good fit.
+
+
+## Exercise 3: Negative Binomial regression (optional)
+
+Predict the amount of measles vaccinations (Maanzahl) by the number of siblings (e006B1), the sex and age of the children (sex, age2), place of residence (STALA, OW) and the monthly household income (e093), using a Negative Binomial regression model. Interpret the results. Which variables are associated with the outcome? Is the model a good fit to the data?

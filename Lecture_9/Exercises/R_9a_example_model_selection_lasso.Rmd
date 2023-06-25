@@ -1,0 +1,91 @@
+---
+title: "Linear regression: model selection with lasso"
+author: "Stefan Konigorski"
+date: "December 14, 2022"
+output:
+  html_document: default
+---
+
+## Load KiGGS data
+
+```{r}
+dat_link <- url("https://www.dropbox.com/s/pd0z829pv2otzqt/KiGGS03_06.RData?dl=1")
+load(dat_link)
+dat <- KiGGS03_06
+```
+
+## Model selection
+
+Aim: Use lasso to choose the relevant variables for predicting BMI. 
+
+Since the glmnet function cannot deal with missing values, for this example impute missing values first using the mice function, the apply lasso. (Note: this is not recommended to only analyze 1 imputed dataset, for a proper analysis, apply the analysis of choice always to all eg 5 imputed datasets and then aggregate.)
+
+```{r}
+# install.packages("glmnet")
+library(glmnet)
+library(mice)
+
+# transform all factors to numeric variables for mice
+testdat <- dat[,c(3,4,8:20)]
+testdat <- data.frame(BMI = dat$bmiB, testdat)
+for(i in 1:ncol(testdat)){
+  testdat[,i] <- as.numeric(testdat[,i])
+}
+
+# use mice to impute the dataset, and extract the first complete dataset
+testdat_mice <- mice(testdat, m = 5, maxit = 5, meth = 'norm', seed = 500)
+testdat_mice_1 <- complete(testdat_mice,1)
+
+# for the analysis, define X (matrix of predictor variables) and outcome Y (BMI)
+Y <- testdat_mice_1$BMI
+X <- as.matrix(testdat_mice_1[ , !(names(testdat_mice_1) %in% "BMI")])
+```
+
+```{r}
+### Fit lasso for different penalty terms lambda (also named s in the glmnet functions)
+res <- glmnet(x = X, y = Y, alpha = 1, family = "gaussian")
+
+# look at the model fit (deviance) for each lambda (s)
+print(res)
+```
+
+```{r}
+### Fit lasso and do cross-validation to find the best lambda
+res.cv <- cv.glmnet(x = X, y = Y, alpha = 1, family = "gaussian")
+
+### plot the results
+plot(res.cv)
+# this gives, among others, two coefficients of interest:
+# lambda.min - the parameter for which the model has the best model fit
+# lambda.1se - the most regularized model such that error is within one standard error of the minimum.
+```
+
+```{r}
+## Look at the coefficients
+coef(res.cv, s = "lambda.min")
+coef(res.cv, s = "lambda.1se")
+
+######################################################
+## -> note that for a practical application, you only need to compute line 55 to fit the model by cross-validating lambda, and then plot line 66 or 67 to see which variables have been selected
+######################################################
+```
+
+```{r}
+### get R squared:
+1 - res.cv$cvm[res.cv$lambda == res.cv$lambda.1se] / var(Y)
+```
+
+```{r}
+### How to extract the variables that are selected in your lasso model, e.g. if you then want to apply this model in another data set:
+var_final <- as.matrix(coef(res.cv, s = "lambda.1se"))[!(as.matrix(coef(res.cv, s = "lambda.1se"))==0),]
+X_final <- X[, colnames(X) %in% names(var_final)]
+```
+
+```{r}
+# for multiple imputed data sets: combine extraction of Y, X with glmnet into one function, then use in with 
+# modelFit1 <- with(tempData, glmnet(x = X, y = bmiB))
+# summary(pool(modelFit1))
+
+# https://cran.r-project.org/web/packages/glmnet/vignettes/glmnet_beta.pdf
+```
+

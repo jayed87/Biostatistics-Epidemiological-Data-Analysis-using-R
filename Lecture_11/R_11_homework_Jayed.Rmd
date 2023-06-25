@@ -1,0 +1,130 @@
+---
+title: "Homework 11"
+author: "Stefan Konigorski"
+date: "January 18, 2023"
+output:
+  html_document: default
+---
+
+Download this R Markdown file, save it on your computer, and perform all the below tasks by inserting your answer in text or by inserting R chunks below. After you are done, upload this file with your solutions on Moodle.
+
+For all exercises, use the KiGGS dataset.
+
+## Exercise 1: Analysis of variance
+
+Choose serum glucose levels (GLUCX) as outcome variable of interest, the factors BMI group (bmiKH) and sex (sex), and physical wellbeing (kw100.e) as quantitative covariate (=metric variable), and compute 5 ANOVA models: (i-ii) one model with each factors separately, (iii) one model with both factors, (iv) one model with both factors and their interaction, (v) one model with both factors, their interaction, and the covariate.
+
+Choose at least one aspect that you observed in the results and write one sentence on the interpretation of this results. For example, you can write about: Write which factor is associated with the outcome? Is there a significant interaction effect? Does anything change after adjusting for the covariate?
+
+```{r}
+# Preparation
+dat_link <- url("https://www.dropbox.com/s/pd0z829pv2otzqt/KiGGS03_06.RData?dl=1")
+load(dat_link)
+dat <- KiGGS03_06
+dat$GLUCX <- as.numeric(as.character(dat$GLUCX))
+dat$kw100.e <- as.numeric(as.character(dat$kw100.e))
+dat$bmiKH <- factor(dat$bmiKH, labels = c("strong underweight", "underweight", "normal weight", "overweight", "obese"))
+dat$sex <- factor(dat$sex, labels = c("boys", "girls"))
+```
+
+(i-ii) one model with each factors separately
+```{r}
+fit1 <- aov(GLUCX ~ sex, data = dat)
+summary(fit1)
+predict(fit1, data.frame(sex = levels(dat$sex)))#For the factor Sex
+tapply(dat$GLUCX, list(dat$sex), mean, na.rm = TRUE)
+
+fit2 <- aov(GLUCX ~ bmiKH, data = dat)
+summary(fit2)
+predict(fit2, data.frame(bmiKH = levels(dat$bmiKH)))#For the factor BMI group
+tapply(dat$GLUCX, list(dat$bmiKH), mean, na.rm = TRUE)
+```
+
+(iii)one model with both factors,
+```{r}
+# ANOVA:
+fit3 <- aov(GLUCX ~ bmiKH + sex, data = dat)
+summary(fit3)
+
+predict(fit3, data.frame(bmiKH = levels(dat$bmiKH), sex = levels(dat$sex)[1])) # levels(dat$sex)[1] is "boys"
+predict(fit3, data.frame(bmiKH = levels(dat$bmiKH), sex = levels(dat$sex)[2])) # levels(dat$sex)[2] ist "girls"
+tapply(dat$GLUCX, list(dat$bmiKH, dat$sex), mean, na.rm = TRUE)
+```
+
+
+(iv) one model with both factors and their interaction
+```{r}
+# ANOVA:
+fit4 <- aov(GLUCX ~ bmiKH + sex + bmiKH:sex, data = dat)
+summary(fit4)
+
+library(interactions)
+#Preparation
+data_for_analysis <- data.frame(GLUCX = dat$GLUCX, bmiKH = dat$bmiKH, sex = dat$sex)
+data_for_analysis <- data_for_analysis[complete.cases(data_for_analysis),]
+data_for_analysis <- droplevels(data_for_analysis)
+
+# Now recompute ANOVA and use the cat_plot function.
+fit4.neu <- aov(GLUCX ~ bmiKH + sex + bmiKH:sex, data = data_for_analysis)
+cat_plot(fit4.neu, pred = bmiKH, modx = sex)
+
+
+cat_plot(fit4.neu, pred = bmiKH, modx = sex, plot.points = TRUE)
+(plot1 <- cat_plot(fit4.neu, pred = bmiKH, modx = sex, geom = "line")) 
+
+# Compare to model without interaction:
+cat_plot(aov(GLUCX ~ bmiKH + sex, data = data_for_analysis), pred = bmiKH, modx = sex, geom = "line")
+
+# Boys: 
+predict(fit4, data.frame(bmiKH = levels(data_for_analysis$bmiKH), sex = levels(data_for_analysis$sex)[1])) # levels(data_for_analysis$sex)[1] is "boys"
+# Girls: 
+predict(fit4, data.frame(bmiKH = levels(data_for_analysis$bmiKH), sex = levels(data_for_analysis$sex)[2])) # levels(data_for_analysis$sex)[2] is "girls"
+
+tapply(dat$GLUCX, list(dat$bmiKH, dat$sex), mean, na.rm = TRUE)
+```
+
+
+(v) one model with both factors, their interaction, and the covariate
+```{r}
+fit5 <- aov(GLUCX ~ kw100.e + bmiKH + sex + bmiKH:sex, data = dat)
+summary(fit5)
+# Preparation
+data_for_analysis2 <- data.frame(GLUCX = dat$GLUCX, bmiKH = dat$bmiKH, sex = dat$sex, kw100.e = dat$kw100.e)
+data_for_analysis2 <- data_for_analysis2[complete.cases(data_for_analysis2),]
+data_for_analysis2 <- droplevels(data_for_analysis2)
+
+# Now recompute ANOVA and use the cat_plot function.
+fit5.neu <- aov(GLUCX ~ kw100.e + bmiKH + sex + bmiKH:sex , data = data_for_analysis2)
+cat_plot(fit5.neu, pred = bmiKH, modx = sex)
+
+
+cat_plot(fit5.neu, pred = bmiKH, modx = sex, plot.points = TRUE)
+(plot2 <- cat_plot(fit5.neu, pred = bmiKH, modx = sex, geom = "line")) 
+
+# Compare to model without interaction:
+cat_plot(aov(GLUCX ~ kw100.e+ bmiKH + sex, data = data_for_analysis2), pred = bmiKH, modx = sex, geom = "line")
+#Boys
+predict(fit5, data.frame(kw100.e = levels(data_for_analysis2$kw100.e), bmiKH = levels(data_for_analysis$bmiKH), sex = levels(data_for_analysis$sex)[1]))
+#Girls
+predict(fit5, data.frame(kw100.e = levels(data_for_analysis2$kw100.e), bmiKH = levels(data_for_analysis$bmiKH), sex = levels(data_for_analysis$sex)[1]))
+
+tapply(dat$GLUCX, list(dat$bmiKH, dat$sex), mean, na.rm = TRUE)
+```
+##Result interpretation
+The Factors Sex and BMI have the closest association(p-value is significant) with outcome variable while the interaction of the two factors have no association with the outcome as the p-value is 0.424. The interaction effect is minor. However, after adding the co-variate there are little changes has been happened.
+
+
+
+
+## Exercise 2: Posthoc tests in analysis of variance (optional)
+
+Perform posthoc t-tests with and without a correction for multiple testing for the ANOVA in exercise 1, where we tested whether systolic blood pressure differed between age groups.
+
+```{r}
+# Preparation
+dat_link <- url("https://www.dropbox.com/s/pd0z829pv2otzqt/KiGGS03_06.RData?dl=1")
+load(dat_link)
+dat <- KiGGS03_06
+dat$age2 <- factor(dat$age2, labels = c("0-1y", "2-3y", "4-5y", "6-7y", "8-9y", "10-11y", "12-13y", "14-15y", "16-17y"))
+```
+

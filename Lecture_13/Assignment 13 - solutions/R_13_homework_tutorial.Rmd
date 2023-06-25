@@ -1,0 +1,205 @@
+---
+title: "Homework 13 - tutorial"
+author: "Thomas Gaertner"
+date: "February 7, 2023"
+output:
+  html_document: 
+    toc: true
+---
+
+## Exercise 1: Survival analysis
+
+### Task
+
+> Choose one other provided dataset in the survival package (or any other suitable dataset of interest) which contains time-to-event dataset. Use the survfit function to compute the Kaplan-Meier estimate of the survival function and plot it. Then choose a variable with 2 or more categories in the dataset and perform a log-rank test. Interpret the results: is there are difference in survival between the groups?
+
+```{r include=FALSE, show=FALSE}
+library(survival)
+library(survminer)
+library(dplyr)
+```
+
+### Example Solution 1: NCCTG Lung Cancer Data
+Survival in patients with advanced lung cancer from the North Central Cancer Treatment Group. Performance scores rate how well the patient can perform usual daily activities.
+We are interested in `status` after `time` for different `sex`.
+
+#### Data
+```{r}
+# preprocessing
+lung$sex <- as.factor(lung$sex)
+levels(lung$sex) <- c("male","female")
+str(lung)
+```
+
+#### Kaplan-Meier Plots
+```{r}
+KM_lung <- survfit(Surv(time, status) ~ sex, data = lung)
+
+plot(KM_lung, main = expression(paste("Kaplan-Meier-estimate ", hat(S)(t), " stratified by sex")), ylab = "Survival function", xlab = "Time", lwd=2, col=1:2)
+legend(x="topright", col = 1:2, lwd = 2, legend=c("male", "female"))
+
+
+ggsurvplot(KM_lung, data = lung, pval = TRUE)
+```
+
+
+#### Log-Rank Test
+
+To compare the interventions, we are using the function `survdiff` to perform a log-rank test.
+```{r}
+# perform log-rank test:
+survdiff(Surv(time, status) ~ sex, data = lung)
+# Interpretation: As the p-value is smaller then the a significant level of 0.01, we can reject the null hypothesis and assume, that the time to death differs between the male and female.
+```
+
+#### Cox -Proportional-Hazard Model
+
+```{r}
+cox <- coxph(Surv(time, status) ~ sex, data = lung)
+summary(cox)
+```
+
+*Interpretation*
+
+1) *Significant*: The summary gives several p-values for overall significant in the end. As all p-values are less than the significant level of 0.01, we can reject the null hypothesis and assume that the model is significant.
+2) *Significant of Coefficients*: The predictor has a p-value less than 0.01, so sex as a significant influence on the outcome. 
+3) *Coefficients*: The coefficient for `sexfemale` is negative, so the risk of death is smaller compared to male.
+4) *Hazard Ratios (`exp(coef)`)*: The hazard ratios gives the size of the difference. In this case being female reduces the risk of death of 41%.
+
+
+### Example Solution 2: Breast cancer data set
+The `rotterdam` data set includes 2982 primary breast cancers patients whose data whose records were included in the Rotterdam tumor bank.
+
+In this data set, we analyse the survival time `dtime` for the outcome `death` for tumor size, a factor with levels (<=20, 20-50, >50). We will look at a significant level of $\alpha \leq 0.01$.
+
+#### Data
+```{r}
+str(rotterdam)
+#help(rotterdam)
+```
+
+#### Kaplan-Meier Plots
+
+```{r}
+KM_rotterdam <- survfit(Surv(dtime, death) ~ size, data = rotterdam)
+ggsurvplot(KM_rotterdam, data = rotterdam, pval = TRUE)
+```
+
+#### Log-Rank Test
+
+```{r}
+# perform log-rank test:
+survdiff(Surv(dtime, death) ~ size, data = rotterdam)
+# Interpretation: As the p-value is smaller then the a significant level of 0.01, we can reject the null hypothesis and assume, that the time to death differs between the tumor sizes.
+```
+
+#### Cox-Proportional-Hazard Model
+
+```{r}
+cox <- coxph(Surv(dtime, death) ~ size, data = rotterdam)
+summary(cox)
+```
+*Interpretation*
+1) *Significant*: The summary gives several p-values for overall significant in the end. As all p-values are less than the significant level of 0.01, we can reject the null hypothesis and assume that the model is significant.
+2) *Significant of Coefficients*: Each predictor has a p-value. Both are less than 0.01, so they are significant. 
+3) *Coefficients*: Both coefficients for `size20-50` and `size>50` are positive, so the risk of death is greater compared to `size<20`.
+4) *Hazard Ratios (`exp(coef)`)*: The hazard ratios gives the size of the difference. For example, `size20-50` has a 95% higher risk of death.
+
+### Example Solution 3: diabetic data set
+
+Do a survival analysis of the 'diabetic' dataset in the survival package, which contains data on the outcome time-to-visual loss, in a sample of patients with diabetic retinopathy that were treated with two types of laser treatment.
+
+
+#### Data
+
+```{r}
+dat <- diabetic
+
+# look at data:
+#?diabetic
+str(dat)
+```
+
+#### Kaplan-Meier Plots
+
+
+```{r}
+KM1 <- survfit(Surv(time, status) ~ 1, data = dat)
+# Look at the plot:
+plot(KM1, main = expression(paste("Kaplan-Meier-estimate ", hat(S)(t), " with 95% CI")), ylab = "Survival function", xlab = "Time")
+```
+
+In the next step, we could investigate the influence of the intervention. For that, we are creating our survival analysis stratified by the intervention `laser`. 
+
+```{r}
+# Stratify this by treatment:
+KM2 <- survfit(Surv(time, status) ~ laser, data = dat)
+plot(KM2, main = expression(paste("Kaplan-Meier-estimate ", hat(S)(t), " stratified by laser")), ylab = "Survival function", xlab = "Time", lwd=2, col=1:2)
+legend(x="topright", col = 1:2, lwd = 2, legend=c("xenon", "argon"))
+```
+
+```{r}
+ggsurvplot(KM2, data = dat, pval = TRUE)
+```
+
+
+#### Log-Rank Test
+
+To compare the interventions, we are using the function `survdiff` to perform a log-rank test.
+```{r}
+# perform log-rank test:
+survdiff(Surv(time, status) ~ laser, data = dat)
+# Interpretation: no effect of treatment on the outcome = time-to-visual loss.
+```
+
+#### What is the probability after 18 Month?
+Possible Question could be, what is the probability of visual loss after 18 months?
+```{r}
+summary(KM2, times = 18)
+# Interpretation: The probability for survival is around 76% for xenon and 77% for argon after 18 month. 
+```
+
+#### Cox-Proportional-Hazard Model
+```{r}
+cox <- coxph(Surv(time, status) ~ laser, data = dat)
+summary(cox)
+```
+> Interpretation:
+> The log rank test had a p-value of 0.9, so we cannot reject the null-hypthesis and we have to assume that the survival curve does not depend on the laser.
+> If we apply a cox-proportinal hazard model, we can see, that the coeffizient itself is slightly positive, so a risk for visual loss is slightly highy using argon laser, BUT this is not significant as the p-value is 0.89. 
+
+
+### Example Solution 4: Ovarian data set
+
+In this data set, we have RCT data from a ovarian cancer trial. We have the time-to-event variable(`futime`), the censor status (`fustst`), the treatment group (`rx`) and other covariates.  
+
+#### Data
+```{r}
+str(ovarian)
+#help(ovarian)
+```
+#### Kaplan-Meier Plots
+
+```{r}
+KM_ovarian <- survfit(Surv(futime, fustat) ~ 1, data = ovarian)
+
+# Look at the plot
+ggsurvplot(KM_ovarian, data = ovarian, pval = TRUE)
+```
+
+
+```{r}
+# Stratify this by treatment:
+KM_ovarian_2 <- survfit(Surv(futime, fustat) ~ rx, data = ovarian)
+
+ggsurvplot(KM_ovarian_2, data = ovarian, pval = TRUE)
+```
+
+#### Log-Rank Test
+```{r}
+# perform log-rank test:
+survdiff(Surv(futime, fustat) ~ rx, data = ovarian)
+# Interpretation: no effect of treatment on the outcome = time-to-event loss.
+```
+
+

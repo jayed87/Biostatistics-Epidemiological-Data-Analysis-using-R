@@ -1,0 +1,49 @@
+---
+title: "Exercises: Analysis of variance"
+author: "Stefan Konigorski"
+date: "January 18, 2023"
+output:
+  html_document: default
+---
+
+## Preparations
+
+Load KiGGS data:
+
+```{r}
+dat_link <- url("https://www.dropbox.com/s/pd0z829pv2otzqt/KiGGS03_06.RData?dl=1")
+load(dat_link)
+dat <- KiGGS03_06
+
+dat$sex <- factor(dat$sex, labels = c("boys", "girls"))
+dat$age2 <- factor(dat$age2, labels = c("0-1y", "2-3y", "4-5y", "6-7y", "8-9y", "10-11y", "12-13y", "14-15y", "16-17y"))
+```
+
+## Exercise 1
+
+Compute a 1-way ANOVA to investigate if systolic blood pressure (sys12) differs between the age groups of the children (age2).
+
+```{r}
+```
+
+Compute a 2-way ANOVA to investigate if systolic blood pressure (sys12) differs between the age groups of the children (age2) and between boys and girls (sex).
+
+```{r}
+```
+
+## Exercise 2
+
+Compute an ANOVA to investigate if systolic blood pressure (sys12) differs between the age groups of the children (age2), between boys and girls (sex), and between the levels of their interaction term. Visualize the interaction in a profile plot.
+
+```{r}
+# install.packages("interactions")
+library(interactions)
+```
+
+## Exercise 3
+
+Compute an ANOVA to investigate if systolic blood pressure (sys12) differs between the age groups of the children (age2), between boys and girls (sex), and between the levels of their interaction term, adjusting for BMI. Look at the predicted adjusted systolic blood pressure means. Interpret the results.
+
+```{r}
+```
+

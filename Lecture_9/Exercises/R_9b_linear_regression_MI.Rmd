@@ -1,0 +1,67 @@
+---
+title: "Linear regression with missing values"
+author: "Stefan Konigorski"
+date: "December 14, 2022"
+output:
+  html_document: default
+---
+
+## Load KiGGS data
+
+```{r}
+dat_link <- url("https://www.dropbox.com/s/pd0z829pv2otzqt/KiGGS03_06.RData?dl=1")
+load(dat_link)
+dat <- KiGGS03_06
+```
+
+Aim: Use linear regression to investigate the question if the amount and frequency of eating pancakes is associated with the BMI of children.
+
+## Without imputation
+
+```{r}
+# formatting
+bmi <- dat$bmiB
+pancake_amount <- dat$fq41a
+pancake_amount <- factor(pancake_amount, labels = c("never", "1/4 piece or less", "1/2 piece", "1 piece", "2 pieces", "3 pieces or more"))
+pancake_freq <- dat$fq41
+pancake_freq <- droplevels(pancake_freq)
+pancake_freq <- factor(pancake_freq, labels = c("never", "1x/month", "2-3x/month", "1-2x/week", "3-4x/week", "5-6x/week", "1x/day", "2-3x/day", "4-5x/day"))
+fit1 <- lm(bmi ~ as.numeric(pancake_amount) + as.numeric(pancake_freq) + as.numeric(dat$age2) + dat$sex)
+summary(fit1)$coefficients
+```
+
+### Multiple Imputation mit mice
+
+```{r}
+# install.packages("mice")
+library(mice)
+
+# data preparation
+dat_for_mice <- data.frame(bmi, pancake_amount = as.numeric(pancake_amount), pancake_freq = as.numeric(pancake_freq), age = as.numeric(dat$age2), sex = dat$sex)
+
+# patterns of missing values
+md.pattern(dat_for_mice)
+```
+
+```{r}
+# step 1: do imputation, generate 5 imputed datasets, use method 'norm' instead of 'pmm' here since it is faster
+tempData <- mice(dat_for_mice, m = 5, maxit = 50, meth = 'norm', seed = 500)
+
+# summary of the imputation:
+summary(tempData)
+```
+
+```{r}
+# visualization of the distribution of the imputed variables
+densityplot(tempData)
+```
+
+```{r}
+# step 2: do the statistical analysis with help of the "with" function
+fit2 <- with(tempData, lm(bmi ~ pancake_amount + pancake_freq + age + sex))
+```
+
+```{r}
+# step 3: pool the results
+summary(pool(fit2))
+```

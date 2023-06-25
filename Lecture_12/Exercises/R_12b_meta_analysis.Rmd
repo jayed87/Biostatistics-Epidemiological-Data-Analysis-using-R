@@ -1,0 +1,101 @@
+---
+title: "Meta-analysis"
+author: "Stefan Konigorski"
+date: "January 25, 2023"
+output:
+  html_document: default
+---
+
+Much of the following is based on the vignette of the metafor R package:
+
+```{r}
+#install.packages("metafor")
+library(metafor)
+
+data("dat.bcg", package = "metafor")
+print(dat.bcg, row.names = FALSE)
+## Data from Colditz GA et al. (1994). "Efficacy of BCG Vaccine in the Prevention of Tuberculosis: Meta-Analysis of the Published Literature." Journal of the American Medical Association, 271(9), 698?702.
+## Dataset contains:
+# trial number
+# author(s)
+# publication year
+# number of treated (vaccinated) subjects that were tuberculosis positive and negative (tpos and tneg, respectively)
+# similarly for the control (non-vaccinated) subjects (cpos and cneg, respectively). 
+# absolute latitude of the study location (in degrees)
+# treatment allocation method (random, alternate, or systematic assignment)
+```
+
+```{r}
+# Use log relative risk as effect measure
+# Use escalc function to compute this for each study, and show results
+# In escalc Funktion: When setting append = TRUE, the data frame specified via the data argument is returned together with the effect size estimates and corresponding sampling variances.
+dat <- escalc(measure = "RR", ai = tpos, bi = tneg, ci = cpos, di = cneg, data = dat.bcg, append = TRUE)
+print(dat[,-c(4:7)], row.names = FALSE)
+# Calculate the first entry by hand to check:
+# log relative risk: log((4/123)/(11/139)) = -0.8893113
+# Variance of this: sqrt( (1/4) + (1/11) - (1/123) - (1/139) )^2
+```
+
+```{r}
+# Do meta-analysis based on mixed-effects model (this uses by default inverse-variance weights):
+res1 <- rma(yi, vi, data = dat)
+res1
+# is identical to: res1 <- rma(yi, vi, data = dat, weights = dat$vi)
+# or do based on raw data: res <- rma(ai = tpos, bi = tneg, ci = cpos, di = cneg, data = dat, measure = "RR")
+# -> Results: significant effect of vaccination, but strong heterogeneity of studies
+
+# 95% confidence intervals of the estimator:
+confint(res1)
+```
+
+```{r}
+# Do meta-analysis based on fixed-effects model:
+res2 <- rma(yi, vi, data = dat, method = "FE")
+res2
+# -> clear differences to mixed-effects model since there is a large heterogeneity of studies
+```
+
+```{r}
+# Forest plot of the results:
+forest(res1)
+
+# with more fine-formatting. slab has labels for the studies, xlab is name of x axis. 
+# ilab are the variables whose values are printed in the plot, at the positition ilab.xpos in the plot
+# atransf: whether log RR or RR are displayed.
+# The text() lines below add labels to the plot and the specified position in the plot.
+forest(res1, slab = paste(dat$author, dat$year, sep = ", "), xlim = c(-16, 6), at = log(c(0.05, 0.25, 1, 4)), atransf = exp,
+    ilab = cbind(dat$tpos, dat$tneg, dat$cpos, dat$cneg), ilab.xpos = c(-9.5, -8, -6, -4.5), cex = 0.75, xlab = "Risk ratio")
+op <- par(cex = 0.75, font = 2)
+text(c(-9.5, -8, -6, -4.5), 15, c("TB+", "TB-", "TB+", "TB-"))
+text(c(-8.75, -5.25), 16, c("Vaccinated", "Control"))
+text(-16, 15, "Author(s) and Year", pos = 4)
+text(6, 15, "Relative risk [95% CI]", pos = 2)
+par(op)
+```
+
+```{r}
+# Explore explanations of the study heterogeneity, try to explain by year and latitude:
+res3 <- rma(yi, vi, mods = cbind(ablat, year), data = dat)
+res3
+# -> Can explain parts of the heterogeneity but not all.
+```
+
+```{r}
+# Visualize the results of a subgroup analysis:
+preds <- predict(res3, newmods = cbind(0:60, 1970), transf = exp)
+wi <- 1/sqrt(dat$vi)
+size <- 0.5 + 3 * (wi - min(wi))/(max(wi) - min(wi))
+plot(dat$ablat, exp(dat$yi), pch = 19, cex = size, xlab = "Absolute latitude", ylab = "Relative risk", las = 1, bty = "l", log = "y")
+lines(0:60, preds$pred)
+lines(0:60, preds$ci.lb, lty = "dashed")
+lines(0:60, preds$ci.ub, lty = "dashed")
+abline(h = 1, lty = "dotted")
+```
+
+Overview of meta package:
+
+```{r}
+#install.packages("meta")
+library(meta)
+help(meta)
+```

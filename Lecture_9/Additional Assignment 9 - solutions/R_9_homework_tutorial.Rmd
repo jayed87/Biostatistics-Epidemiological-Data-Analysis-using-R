@@ -1,0 +1,284 @@
+---
+title: "Solutions to homework 9"
+author: "Thomas Gärtner"
+date: "January 17, 2022"
+output:
+  html_document: default
+---
+
+## Load KiGGS data
+
+```{r}
+#dat_link <- url("https://www.dropbox.com/s/pd0z829pv2otzqt/KiGGS03_06.RData?dl=1")
+load("~/Biostatistics/WS2223/Data/KiGGS03_06.RData")
+dat <- KiGGS03_06
+```
+
+## Examine assumptions of exercise 1
+
+**Task:** 
+
+> Load the KiGGS dataset and compute a regression predicting BMI by sex and age groups (age2). In this model, investigate and judge whether the assumptions listed on slide 13 in lecture 9 are satisfied.
+
+**Solution:** 
+```{r}
+# variable preparation
+bmi <- dat$bmiB
+sex <- dat$sex
+age <- as.numeric(dat$age2)
+```
+
+```{r}
+# regression
+fit1 <- lm(bmi ~ sex + as.numeric(age))
+```
+
+### 1.1) Y continuous? 
+
+```{r}
+str(bmi)
+summary(bmi)
+```
+> Yes, BMI is a continuous variable
+
+### 1.2) relationship between the X variables and Y linear?
+
+Look at scatterplots:
+
+```{r}
+plot(as.numeric(sex), bmi)
+plot(as.numeric(age), bmi)
+
+# a slightly different way of looking at it, adding jitter:
+plot(jitter(as.numeric(age)), bmi)
+```
+
+> These plots might suggest that there can be a U-shape relationship (minimum at 2-3) and not a linear relationship, but it is hard to say from these plots.
+
+Look at boxplots with added regression line (you have to run both lines in the code together):
+
+```{r}
+plot(sex, bmi)
+#abline(lm(bmi ~ as.numeric(sex)), col = "blue")
+
+plot(age, bmi)
+abline(lm(bmi ~ as.numeric(age)), col = "blue")
+```
+
+>This is already a lot more informative, both looking at boxplots, and also adding the regression line (with the respective predictor) for illustration (just for illustration, since it is not the same regression as our full model with both variables). This suggests that assuming a linear relationship is not optimal for age.
+
+Other way to look at it: look at residual plot.
+```{r}
+plot(fit1, 1)
+```
+
+>This give some information, but is less clear visible and NOT the best way to check for linearity. It can give the following information: for low (fitted) BMI values the errors are rather positive and for the medium (fitted) BMI values the errors are rather negative, which supports that the regression line is not optimal. However, these deviances are only small and this looks at the regression line for both variables, hence it only gives indirect information that the regression line is not optimal so that you should check e.g. for linearity by looking at above plots.
+
+One way how to incorporate non-linearity:
+```{r}
+# regression models with quadratic terms:
+fit_quadr <- lm(bmi ~ as.numeric(age) + I(as.numeric(age)^2))
+summary(fit_quadr)$coefficients
+```
+
+These clearly confirm that the relationship is not linear. Visualize this model:
+
+```{r}
+fit_quadr_function <- function(x){summary(fit_quadr)$coefficients[1,1] +   
+                                   summary(fit_quadr)$coefficients[2,1]*x + 
+                                   summary(fit_quadr)$coefficients[3,1]*x^2}
+plot(age, bmi)
+plot(fit_quadr_function, xlim = c(1, 9), add = TRUE, col = "blue")
+```
+
+This looks better. 
+
+Another way of investigating and potentially further improving it is by checking whether the regression coefficients of as.numeric(age) are similar to the differences between categories when age is used in a regression model as factor. 
+
+```{r}
+summary(lm(bmi ~ as.numeric(age)))$coefficients
+summary(lm(bmi ~ age))$coefficients
+```
+
+> This also suggests that the relationship is not linear. Hence age should be modeled as factor not with as.numeric, or with a quadratic term. 
+
+### 1.3) All relevant variables (covariates, confounders) are in the model
+
+> cannot be tested, this would be our assumption. However, here, this assumption does not seem to be correct: I can think of many other variables that can potentially have an effect.
+
+### 1.4) All observations are independent
+
+> there might be some structure in that students are clustered in schools or districts, or are siblings, but we don't have that information and there is a large sample size, so that assuming they are independent might be ok.
+
+> Can also e.g. compute and test the ICC (intraclass correlation coefficient) using the ICC() function, or test for autocorrelation using the lmtest::dwtest() function to check this.
+
+```{r}
+lmtest::dwtest(bmi~age + sex)
+```
+
+
+### 1.5) No multicollinearity
+
+> fit1 looks totally fine, and there is no correlation between predictors:
+
+```{r}
+cor(as.numeric(age), as.numeric(sex), use = "complete.obs", method = "spearman")
+```
+
+> Can also check this e.g. by using the `car::vif()` function:
+(Calculates variance-inflation and generalized variance-inflation factors (VIFs and GVIFs) for linear, generalized linear, and other regression models.)
+
+```{r}
+car::vif(fit1)
+```
+
+
+
+### 1.6) Homoscedastic residuals
+
+```{r}
+# Look at first plot in:
+plot(fit1,1)
+```
+
+* higher variance for fitted values, but there are also more observations there, so maybe this is ok. Can also check this e.g. by using the ncvTest() function.
+
+> `ncvTest()`:
+Computes a score test of the hypothesis of constant error variance against the alternative that the error variance changes with the level of the response (fitted values), or with a linear combination of predictors. 
+
+```{r}
+car::ncvTest(fit1)
+```
+
+### 1.7) Normally-distributed residuals
+
+```{r}
+# Distribution of outcome:
+hist(bmi)
+qqnorm(scale(bmi)); abline(0,1)
+# Distribution of residuals, see:
+plot(fit1, 2)
+```
+
+
+```{r}
+bmi_log <- log(bmi)
+hist(bmi_log)
+qqnorm(scale(bmi_log)); abline(0,1)
+plot(lm(bmi_log ~ sex + age), 2)
+```
+
+> residuals in log-transformed BMI model look slightly better, but still not normally-distributed.
+
+### Conclusion
+there is quite some evidence that several assumptions are violated in this regression model, so that the model should be improved!
+
+### Addition 1
+The `gvlma` function can be used to perform hypothesis tests of several assumptions (with the caveat that a visual inspection of some assumptions is preferred): 
+
+```{r}
+# use glmva package
+#install.packages("gvlma")
+library(gvlma)
+gvmodel <- gvlma(fit1)
+summary(gvmodel)
+```
+
+###Addition 2
+Further plots for diagnostics of the regression model are available, e.g. using:
+
+```{r}
+plot(fit1, 4)
+plot(fit1, 5)
+plot(fit1, 6)
+```
+Here, Cook's distance is a measure of the influence of each data point on the estimated regression line. 
+Leverage looks at something similar: how far away is a data point from the others and therewith influencing the estimated regression line. Both metrics can point to influential points e.g. outliers that can be checked.
+
+Rule of thumbs to detect high influential data point:
+* Cook's distance:
+  * $>1$ high influence, should be removed from the data set
+  * $>0.5$ might have high influence, consider removing
+* Leverage:
+  * $>3(k+1)/n$: needs further investigation
+  * $>2(k+1)/n$ and the data point is isolated: needs further investigation
+  * $k$ is number of parameter, $n$ sample size
+
+
+## Exercise 2: Model selection in linear regression (optional)
+
+**Task:** 
+
+> In the KiGGS dataset, aim to select relevant predictors for sys12 (systolic blood pressure). Use 2 of the model selection approaches described on slide 26, apply them to the KiGGS dataset and compare the results.
+
+**Solution:** 
+
+Lets compare lasso and step wise model selection using the same predictors.
+
+### Stepwise variable selection:
+
+```{r}
+# format variables and get complete case dataset:
+dat_select <- data.frame(sys = as.numeric(as.character(dat$sys12)), age = as.numeric(dat$age2), sex = dat$sex, bmi = as.numeric(as.character(dat$bmiB)), chol = as.numeric(as.character(dat$CHOLX)), gluc = as.numeric(as.character(dat$GLUCX)), iron = as.numeric(as.character(dat$Eisen)))
+dat_select <- dat_select[complete.cases(dat_select), ]
+dim(dat_select)
+# -> ok good, still 13034 observations
+```
+
+
+```{r}
+library(MASS)
+# Define full and null model
+nullmodel <- lm(sys ~ 1, dat = dat_select)
+fullmodel <- lm(sys ~ age + sex + bmi + chol + gluc + iron, dat = dat_select)
+```
+
+
+```{r}
+# perform step wise variable selection based on Akaike information criterion
+stepAIC(object = nullmodel, scope = list(upper = fullmodel, lower = nullmodel), direction = "forward")$anova
+```
+
+
+```{r}
+stepAIC(object = fullmodel, scope = list(upper = fullmodel, lower = nullmodel), direction = "backward")$anova
+```
+
+### Lasso:
+
+```{r}
+library(glmnet)
+
+# preparation: extract all predictors and transform from data.frame to matrix:
+predictors <- dat_select[, 2:7]
+predictors$sex <- as.numeric(predictors$sex)
+predictors <- as.matrix(predictors)
+
+# lasso:
+fit_lasso <- cv.glmnet(x = predictors, y = dat_select$bmi, alpha = 1, family = "gaussian")
+coef(fit_lasso, s = "lambda.min")
+```
+
+> while both stepwise selection models select age, sex, bmi, glucose and iron into the final model as relevant variables, lasso only selects bmi!
+
+## Exercise 3: Linear regression with multiple imputation (optional)
+
+**Task:** 
+
+> Run the code in the Rmd file R_9b_linear_regression_MI.Rmd, inspect the R code what it is doing, and look at the results. Apply the same to the linear regression model of another variable of your choice.
+
+**Solution:** 
+
+```{r}
+library(mice)
+
+# step 1: do imputation, generate 5 imputed datasets, use method 'norm' instead of 'pmm' here since it is faster
+tempData <- mice(dat_select, m = 5, maxit = 50, meth = 'norm', seed = 500)
+
+# step 2: do the statistical analysis with help of the "with" function
+fit_mi <- with(tempData, lm(sys ~ age + sex + bmi + chol + gluc + iron))
+
+# step 3: pool the results
+summary(pool(fit_mi))
+```
+
